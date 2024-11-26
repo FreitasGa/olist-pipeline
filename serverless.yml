@@ -1,0 +1,45 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: flyingsharks
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: olist-pipeline
+
+frameworkVersion: "4"
+
+useDotenv: true
+
+provider:
+  name: aws
+  region: us-east-1
+  runtime: python3.10
+  environment:
+    KAGGLE_USERNAME: ${env:KAGGLE_USERNAME}
+    KAGGLE_KEY: ${env:KAGGLE_KEY}
+  iam:
+    role:
+      statements:
+        - Effect: "Allow"
+          Action:
+            - "s3:*"
+            - "ssm:*"
+          Resource: "*"
+
+functions:
+  ingest:
+    handler: src/handlers/ingest.run
+    events:
+      - schedule: cron(0 3 * * ? *)
+
+resources:
+  Resources:
+    RawDataBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: olist-raw-data
+        AccessControl: Private
+
+custom:
+  pythonRequirements:
+    dockerizePip: true
+
+plugins:
+  - serverless-python-requirements
