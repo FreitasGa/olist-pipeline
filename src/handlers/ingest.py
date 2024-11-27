@@ -25,52 +25,62 @@ def run(event, context):
 
     if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY or not AWS_REGION:
         logger.error("AWS credentials not found")
-        return
+        raise
 
     if not KAGGLE_USERNAME or not KAGGLE_KEY:
         logger.error("Kaggle credentials not found")
-        return
+        raise
 
     if not DATASET_URL or not DATASET_DIR:
         logger.error("Dataset information not found")
-        return
+        raise
 
     if not AWS_S3_BUCKET_NAME:
         logger.error("S3 bucket name not found")
-        return
+        raise
 
     os.makedirs(DATASET_DIR, exist_ok=True)
 
-    logger.info("Downloading dataset")
+    try:
+        logger.info("Downloading dataset")
 
-    response = requests.get(
-        DATASET_URL, auth=(KAGGLE_USERNAME, KAGGLE_KEY), stream=True
-    )
+        response = requests.get(
+            DATASET_URL,
+            auth=(KAGGLE_USERNAME, KAGGLE_KEY),
+            stream=True
+        )
 
-    if response.status_code != 200:
-        logger.error("Failed to download dataset")
-        return
+        if response.status_code != 200:
+            logger.error("Failed to download dataset")
+            return
 
-    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-        z.extractall(DATASET_DIR)
+        with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+            z.extractall(DATASET_DIR)
 
-    logger.info("Listing files in dataset")
+        logger.info("Listing files in dataset")
 
-    paths = []
-    for root, dirs, files in os.walk(DATASET_DIR):
-        for file in files:
-            paths.append(os.path.join(root, file))
+        paths = []
+        for root, dirs, files in os.walk(DATASET_DIR):
+            for file in files:
+                paths.append(os.path.join(root, file))
 
-    client = boto3.client(
-        "s3",
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region_name=AWS_REGION
-    )
+        client = boto3.client(
+            "s3",
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+            region_name=AWS_REGION
+        )
 
-    logger.info("Uploading files to S3")
+        logger.info("Uploading files to S3")
 
-    for path in paths:
-        client.upload_file(path, AWS_S3_BUCKET_NAME, os.path.basename(path))
+        for path in paths:
+            client.upload_file(
+                path,
+                AWS_S3_BUCKET_NAME,
+                os.path.basename(path)
+            )
 
-    logger.info("Ingestion complete")
+        logger.info(f"Ingestion complete, at {datetime.datetime.now()}")
+    except Exception as e:
+        logger.error(f"Failed to ingest dataset: {e}")
+        raise

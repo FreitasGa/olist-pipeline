@@ -14,6 +14,9 @@ provider:
   environment:
     KAGGLE_USERNAME: ${env:KAGGLE_USERNAME}
     KAGGLE_KEY: ${env:KAGGLE_KEY}
+    AWS_S3_BUCKET_NAME: olist-raw-data
+    DATASET_URL: https://www.kaggle.com/olistbr/brazilian-ecommerce
+    DATASET_DIR: /tmp/dataset
   iam:
     role:
       statements:
@@ -28,6 +31,12 @@ functions:
     handler: src/handlers/ingest.run
     events:
       - schedule: cron(0 3 * * ? *)
+  process:
+    handler: src/handlers/process.run
+    events:
+      - s3:
+          bucket: olist-raw-data
+          event: s3:ObjectCreated:*
 
 resources:
   Resources:
