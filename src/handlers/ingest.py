@@ -82,5 +82,6 @@ def run(event, context):
 
         logger.info(f"Ingestion complete, at {datetime.datetime.now()}")
     except Exception as e:
-        logger.error(f"Failed to ingest dataset: {e}")
+        logger.error(f"Ingestion failed, at {datetime.datetime.now()}")
+        logger.error(e)
         raise

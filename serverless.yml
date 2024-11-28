@@ -15,7 +15,7 @@ provider:
     KAGGLE_USERNAME: ${env:KAGGLE_USERNAME}
     KAGGLE_KEY: ${env:KAGGLE_KEY}
     AWS_S3_BUCKET_NAME: olist-raw-data
-    DATASET_URL: https://www.kaggle.com/olistbr/brazilian-ecommerce
+    DATASET_URL: ${env:DATASET_URL}
     DATASET_DIR: /tmp/dataset
   iam:
     role:
@@ -37,6 +37,8 @@ functions:
       - s3:
           bucket: olist-raw-data
           event: s3:ObjectCreated:*
+          existing: true
+          forceDeploy: true
 
 resources:
   Resources:
