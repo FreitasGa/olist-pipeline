@@ -11,12 +11,6 @@ provider:
   name: aws
   region: us-east-1
   runtime: python3.10
-  environment:
-    KAGGLE_USERNAME: ${env:KAGGLE_USERNAME}
-    KAGGLE_KEY: ${env:KAGGLE_KEY}
-    AWS_S3_BUCKET_NAME: olist-raw-data
-    DATASET_URL: ${env:DATASET_URL}
-    DATASET_DIR: /tmp/dataset
   iam:
     role:
       statements:
@@ -31,11 +25,18 @@ functions:
     handler: src/handlers/ingest.run
     events:
       - schedule: cron(0 3 * * ? *)
+    environment:
+      KAGGLE_USERNAME: ${env:KAGGLE_USERNAME}
+      KAGGLE_KEY: ${env:KAGGLE_KEY}
+      DATASET_URL: ${env:DATASET_URL}
+      DATASET_DIR: /tmp/dataset
+      BUCKET_NAME: ${self:custom.rawDataBucket}
+
   process:
     handler: src/handlers/process.run
     events:
       - s3:
-          bucket: olist-raw-data
+          bucket: ${self:custom.rawDataBucket}
           event: s3:ObjectCreated:*
           existing: true
           forceDeploy: true
@@ -45,10 +46,11 @@ resources:
     RawDataBucket:
       Type: AWS::S3::Bucket
       Properties:
-        BucketName: olist-raw-data
+        BucketName: ${self:custom.rawDataBucket}
         AccessControl: Private
 
 custom:
+  rawDataBucket: olist-raw-data
   pythonRequirements:
     dockerizePip: true
 
