@@ -32,15 +32,6 @@ functions:
       DATASET_DIR: /tmp/dataset
       BUCKET_NAME: ${self:custom.rawDataBucket}
 
-  process:
-    handler: src/handlers/process.run
-    events:
-      - s3:
-          bucket: ${self:custom.rawDataBucket}
-          event: s3:ObjectCreated:*
-          existing: true
-          forceDeploy: true
-
 resources:
   Resources:
     RawDataBucket:
@@ -49,8 +40,364 @@ resources:
         BucketName: ${self:custom.rawDataBucket}
         AccessControl: Private
 
+    ScriptsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.scriptsBucket}
+        AccessControl: Private
+
+    ProcessedDataBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.processedDataBucket}
+        AccessControl: Private
+
+    GlueDatabase:
+      Type: AWS::Glue::Database
+      Properties:
+        DatabaseInput:
+          Name: olist-database
+          Description: "Database for Olist data"
+        CatalogId:
+          Ref: AWS::AccountId
+
+    CustomersGlueTable:
+      Type: AWS::Glue::Table
+      DependsOn:
+        - GlueDatabase
+      Properties:
+        CatalogId:
+          Ref: AWS::AccountId
+        DatabaseName:
+          Ref: GlueDatabase
+        TableInput:
+          Name: customers
+          Description: Table for customer data from olist_customers_dataset.csv
+          TableType: EXTERNAL_TABLE
+          StorageDescriptor:
+            Location: "s3://${self:custom.rawDataBucket}/olist_customers_dataset.csv"
+            InputFormat: org.apache.hadoop.mapred.TextInputFormat
+            OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+            SerdeInfo:
+              SerializationLibrary: org.apache.hadoop.hive.serde2.OpenCSVSerde
+            Columns:
+              - Name: customer_id
+                Type: string
+              - Name: customer_unique_id
+                Type: string
+              - Name: customer_zip_code_prefix
+                Type: int
+              - Name: customer_city
+                Type: string
+              - Name: customer_state
+                Type: string
+
+    GeolocationGlueTable:
+      Type: AWS::Glue::Table
+      DependsOn:
+        - GlueDatabase
+      Properties:
+        CatalogId:
+          Ref: AWS::AccountId
+        DatabaseName:
+          Ref: GlueDatabase
+        TableInput:
+          Name: geolocation
+          Description: Table for geolocation data from olist_geolocation_dataset.csv
+          TableType: EXTERNAL_TABLE
+          StorageDescriptor:
+            Location: "s3://${self:custom.rawDataBucket}/olist_geolocation_dataset.csv"
+            InputFormat: org.apache.hadoop.mapred.TextInputFormat
+            OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+            SerdeInfo:
+              SerializationLibrary: org.apache.hadoop.hive.serde2.OpenCSVSerde
+            Columns:
+              - Name: geolocation_zip_code_prefix
+                Type: int
+              - Name: geolocation_lat
+                Type: double
+              - Name: geolocation_lng
+                Type: double
+              - Name: geolocation_city
+                Type: string
+              - Name: geolocation_state
+                Type: string
+
+    OrderItemsGlueTable:
+      Type: AWS::Glue::Table
+      DependsOn:
+        - GlueDatabase
+      Properties:
+        CatalogId:
+          Ref: AWS::AccountId
+        DatabaseName:
+          Ref: GlueDatabase
+        TableInput:
+          Name: order_items
+          Description: Table for order items data from olist_order_items_dataset.csv
+          TableType: EXTERNAL_TABLE
+          StorageDescriptor:
+            Location: "s3://${self:custom.rawDataBucket}/olist_order_items_dataset.csv"
+            InputFormat: org.apache.hadoop.mapred.TextInputFormat
+            OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+            SerdeInfo:
+              SerializationLibrary: org.apache.hadoop.hive.serde2.OpenCSVSerde
+            Columns:
+              - Name: order_id
+                Type: string
+              - Name: order_item_id
+                Type: int
+              - Name: product_id
+                Type: string
+              - Name: seller_id
+                Type: string
+              - Name: shipping_limit_date
+                Type: timestamp
+              - Name: price
+                Type: double
+              - Name: freight_value
+                Type: double
+
+    OrderPaymentsGlueTable:
+      Type: AWS::Glue::Table
+      DependsOn:
+        - GlueDatabase
+      Properties:
+        CatalogId:
+          Ref: AWS::AccountId
+        DatabaseName:
+          Ref: GlueDatabase
+        TableInput:
+          Name: order_payments
+          Description: Table for order payments data from olist_order_payments_dataset.csv
+          TableType: EXTERNAL_TABLE
+          StorageDescriptor:
+            Location: "s3://${self:custom.rawDataBucket}/olist_order_payments_dataset.csv"
+            InputFormat: org.apache.hadoop.mapred.TextInputFormat
+            OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+            SerdeInfo:
+              SerializationLibrary: org.apache.hadoop.hive.serde2.OpenCSVSerde
+            Columns:
+              - Name: order_id
+                Type: string
+              - Name: payment_sequential
+                Type: int
+              - Name: payment_type
+                Type: string
+              - Name: payment_installments
+                Type: int
+              - Name: payment_value
+                Type: double
+
+    OrderReviewsGlueTable:
+      Type: AWS::Glue::Table
+      DependsOn:
+        - GlueDatabase
+      Properties:
+        CatalogId:
+          Ref: AWS::AccountId
+        DatabaseName:
+          Ref: GlueDatabase
+        TableInput:
+          Name: order_reviews
+          Description: Table for order reviews data from olist_order_reviews_dataset.csv
+          TableType: EXTERNAL_TABLE
+          StorageDescriptor:
+            Location: "s3://${self:custom.rawDataBucket}/olist_order_reviews_dataset.csv"
+            InputFormat: org.apache.hadoop.mapred.TextInputFormat
+            OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+            SerdeInfo:
+              SerializationLibrary: org.apache.hadoop.hive.serde2.OpenCSVSerde
+            Columns:
+              - Name: review_id
+                Type: string
+              - Name: order_id
+                Type: string
+              - Name: review_score
+                Type: int
+              - Name: review_comment_title
+                Type: string
+              - Name: review_comment_message
+                Type: string
+              - Name: review_creation_date
+                Type: timestamp
+              - Name: review_answer_timestamp
+                Type: timestamp
+
+    OrdersGlueTable:
+      Type: AWS::Glue::Table
+      DependsOn:
+        - GlueDatabase
+      Properties:
+        CatalogId:
+          Ref: AWS::AccountId
+        DatabaseName:
+          Ref: GlueDatabase
+        TableInput:
+          Name: orders
+          Description: Table for orders data from olist_orders_dataset.csv
+          TableType: EXTERNAL_TABLE
+          StorageDescriptor:
+            Location: "s3://${self:custom.rawDataBucket}/olist_orders_dataset.csv"
+            InputFormat: org.apache.hadoop.mapred.TextInputFormat
+            OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+            SerdeInfo:
+              SerializationLibrary: org.apache.hadoop.hive.serde2.OpenCSVSerde
+            Columns:
+              - Name: order_id
+                Type: string
+              - Name: customer_id
+                Type: string
+              - Name: order_status
+                Type: string
+              - Name: order_purchase_timestamp
+                Type: timestamp
+              - Name: order_approved_at
+                Type: timestamp
+              - Name: order_delivered_carrier_date
+                Type: timestamp
+              - Name: order_delivered_customer_date
+                Type: timestamp
+              - Name: order_estimated_delivery_date
+                Type: timestamp
+
+    ProductsGlueTable:
+      Type: AWS::Glue::Table
+      DependsOn:
+        - GlueDatabase
+      Properties:
+        CatalogId:
+          Ref: AWS::AccountId
+        DatabaseName:
+          Ref: GlueDatabase
+        TableInput:
+          Name: products
+          Description: Table for products data from olist_products_dataset.csv
+          TableType: EXTERNAL_TABLE
+          StorageDescriptor:
+            Location: "s3://${self:custom.rawDataBucket}/olist_products_dataset.csv"
+            InputFormat: org.apache.hadoop.mapred.TextInputFormat
+            OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+            SerdeInfo:
+              SerializationLibrary: org.apache.hadoop.hive.serde2.OpenCSVSerde
+            Columns:
+              - Name: product_id
+                Type: string
+              - Name: product_category_name
+                Type: string
+              - Name: product_name_length
+                Type: int
+              - Name: product_description_length
+                Type: int
+              - Name: product_photos_qty
+                Type: int
+              - Name: product_weight_g
+                Type: double
+              - Name: product_length_cm
+                Type: double
+              - Name: product_height_cm
+                Type: double
+              - Name: product_width_cm
+                Type: double
+
+    SellersGlueTable:
+      Type: AWS::Glue::Table
+      DependsOn:
+        - GlueDatabase
+      Properties:
+        CatalogId:
+          Ref: AWS::AccountId
+        DatabaseName:
+          Ref: GlueDatabase
+        TableInput:
+          Name: sellers
+          Description: Table for sellers data from olist_sellers_dataset.csv
+          TableType: EXTERNAL_TABLE
+          StorageDescriptor:
+            Location: "s3://${self:custom.rawDataBucket}/olist_sellers_dataset.csv"
+            InputFormat: org.apache.hadoop.mapred.TextInputFormat
+            OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+            SerdeInfo:
+              SerializationLibrary: org.apache.hadoop.hive.serde2.OpenCSVSerde
+            Columns:
+              - Name: seller_id
+                Type: string
+              - Name: seller_zip_code_prefix
+                Type: int
+              - Name: seller_city
+                Type: string
+              - Name: seller_state
+                Type: string
+
+    ProductCategoryTranslationGlueTable:
+      Type: AWS::Glue::Table
+      DependsOn:
+        - GlueDatabase
+      Properties:
+        CatalogId:
+          Ref: AWS::AccountId
+        DatabaseName:
+          Ref: GlueDatabase
+        TableInput:
+          Name: product_category_name_translation
+          Description: Table for product category name translations from product_category_name_translation.csv
+          TableType: EXTERNAL_TABLE
+          StorageDescriptor:
+            Location: "s3://${self:custom.rawDataBucket}/product_category_name_translation.csv"
+            InputFormat: org.apache.hadoop.mapred.TextInputFormat
+            OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+            SerdeInfo:
+              SerializationLibrary: org.apache.hadoop.hive.serde2.OpenCSVSerde
+            Columns:
+              - Name: product_category_name
+                Type: string
+              - Name: product_category_name_english
+                Type: string
+
+    GlueJobRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - glue.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: GlueJobPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:*
+                    - logs:*
+                  Resource: "*"
+
+    GlueJob:
+      Type: AWS::Glue::Job
+      Properties:
+        Name: olist-etl-job
+        Role: !GetAtt GlueJobRole.Arn
+        GlueVersion: 3.0
+        Command:
+          Name: olist-etl-job
+          ScriptLocation: "s3://${self:custom.scriptsBucket}/etl.py"
+          PythonVersion: 3
+        DefaultArguments:
+          --job-language: python
+          --TempDir: "s3://${self:custom.processedDataBucket}/temp"
+          --enable-metrics: "true"
+        MaxRetries: 1
+        MaxCapacity: 1
+
 custom:
   rawDataBucket: olist-raw-data
+  processedDataBucket: olist-processed-data
+  scriptsBucket: olist-scripts
   pythonRequirements:
     dockerizePip: true
 
