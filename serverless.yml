@@ -382,7 +382,6 @@ resources:
       Properties:
         Name: olist-etl-job
         Role: !GetAtt GlueJobRole.Arn
-        GlueVersion: 3.0
         Command:
           Name: olist-etl-job
           ScriptLocation: "s3://${self:custom.scriptsBucket}/etl.py"
@@ -393,6 +392,31 @@ resources:
           --enable-metrics: "true"
         MaxRetries: 1
         MaxCapacity: 1
+
+    RDSInstance:
+      Type: AWS::RDS::DBInstance
+      Properties:
+        DBInstanceIdentifier: olist-rds-instance
+        AllocatedStorage: 20
+        DBInstanceClass: db.t3.micro
+        Engine: postgres
+        MasterUsername: flyingsharks
+        MasterUserPassword: I6AaxfUSY2Bs
+        BackupRetentionPeriod: 7
+        PubliclyAccessible: true
+        VPCSecurityGroups:
+          - !Ref RDSSecurityGroup
+
+    RDSSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: "Allow public access to PostgreSQL RDS instance"
+        SecurityGroupIngress:
+          - IpProtocol: "tcp"
+            FromPort: 5432
+            ToPort: 5432
+            CidrIp: "0.0.0.0/0"
+        VpcId: vpc-047adcc42ec7778e2
 
 custom:
   rawDataBucket: olist-raw-data
